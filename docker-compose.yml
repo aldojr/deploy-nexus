@@ -1,0 +1,23 @@
+version: '3'
+
+services:
+  nexus:
+    image: sonatype/nexus3:3.67.1
+    restart: always
+    ports:
+      - "8081:8081"
+      - "5000:5000"
+      - "5001:5001"
+    volumes:
+      - nexus-data:/nexus-data
+        #      - ./init-scripts:/nexus-data/etc/docker-init.d
+      - docker-registry-dev:/mnt/docker-registry-dev
+      - docker-registry-test:/mnt/docker-registry-test
+    environment:
+      - NEXUS_SECURITY_RANDOMPASSWORD=false
+    user: "200"
+
+volumes:
+  nexus-data:
+  docker-registry-dev:
+  docker-registry-test:
