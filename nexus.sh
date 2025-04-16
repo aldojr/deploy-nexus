@@ -1,35 +1,47 @@
 #!/bin/bash
 
-# Ambil image dari docker-compose.yml
-image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' docker-compose.yml)
 
-echo "Running docker compose Nexus repository dengan image $image"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+PURPLE='\033[0;95m'
+BLUE='\033[0;94m'
+YELLOW='\033[0;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+
+VolumeDIR=/var/lib/docker/volumes/
+image=$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' docker-compose.yml)
+container_name="nexus-repo_nexus_1"
+
+echo "${YELLOW}${BOLD}[✓] Create directory for docker volume"
+
+mkdir $VolumeDIR/nexus-repo_docker-registry-dev && chmod -R 777 $VolumeDIR/nexus-repo_docker-registry-dev
+mkdir $VolumeDIR/nexus-repo_docker-registry-test && chmod -R 777 $VolumeDIR/nexus-repo_docker-registry-test
+
+echo "Running docker compose Nexus repository with image $image"
 docker-compose down
 docker-compose up -d
 
-echo "Menunggu Nexus container siap..."
+echo "${YELLOW}${BOLD}[✓] Waiting Nexus container ready..."
 
-# Nama container Nexus (pastikan ini benar sesuai hasil docker ps)
-container_name="nexus-repo_nexus_1"
-
-# Tunggu sampai log Nexus menunjukkan sudah siap
 until docker logs "$container_name" 2>&1 | grep -q "Started Sonatype Nexus"; do
-  echo "Menunggu Nexus siap..."
+  echo "Waiting Nexus Repo ready..."
   sleep 5
 done
 
-echo "Nexus sudah berjalan. Melanjutkan konfigurasi blobstore dan registry..."
+echo "${GREEN}${BOLD}[✓] Nexus Running. Continue Configur blobstore and registry..."
 
-# Fungsi untuk kirim request dan cek error
 send_request() {
   description="$1"
   shift
-  echo "🔧 $description..."
+  echo "${CYAN}${BOLD}[✓] $description..."
   response=$(curl -s -o /tmp/response.json -w "%{http_code}" "$@")
   if [[ "$response" == 2* ]]; then
-    echo "✅ $description berhasil."
+    echo "${CYAN}${BOLD}[✓] $description Done."
   else
-    echo "❌ $description gagal. Status code: $response"
+    echo "${RED}${BOLD}[✗] $description Failed. Status code: $response"
     echo "🔍 Response:"
     cat /tmp/response.json
     exit 1
@@ -43,6 +55,14 @@ send_request "Membuat Blobstore" -X POST "http://192.168.0.8:8081/service/rest/v
   -d '{
     "path": "/mnt/docker-registry-dev",
     "name": "docker-registry-dev"
+}'
+
+send_request "Membuat Blobstore" -X POST "http://192.168.0.8:8081/service/rest/v1/blobstores/file" \
+  -u admin:admin123 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "path": "/mnt/docker-registry-test",
+    "name": "docker-registry-test"
 }'
 
 # Create Docker registry
@@ -70,4 +90,28 @@ send_request "Membuat Docker Registry" -X POST "http://192.168.0.8:8081/service/
   }
 }'
 
-echo "🚀 Semua konfigurasi berhasil!"
+send_request "Membuat Docker Registry" -X POST "http://192.168.0.8:8081/service/rest/v1/repositories/docker/hosted" \
+  -u admin:admin123 \
+  -H "Content-Type: application/json" \
+  -d '{
+  "name": "docker-registry-test",
+  "online": true,
+  "storage": {
+    "blobStoreName": "docker-registry-test",
+    "strictContentTypeValidation": true,
+    "writePolicy": "ALLOW"
+  },
+  "cleanup": null,
+  "docker": {
+    "v1Enabled": false,
+    "forceBasicAuth": false,
+    "httpPort": 5001,
+    "httpsPort": null,
+    "subdomain": null
+  },
+  "component": {
+    "proprietaryComponents": false
+  }
+}'
+
+echo "🚀 All Configuration running well !"
