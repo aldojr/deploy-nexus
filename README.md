@@ -27,7 +27,7 @@ git clone https://github.com/aldojr/deploy-nexus.git
 cd deploy-nexus
 chmod +x deploy.sh
 ./deploy.sh
-
+```
 
 Tunggu hingga muncul:
 🚀 All Configuration running well !
@@ -72,12 +72,7 @@ Lalu ubah:
 
 ## 🧑‍💻 Author
 
-**Aldo Jr**  
+**Reynaldo**  
 https://github.com/aldojr
 
----
-
-## 📜 Lisensi
-
-MIT License
 
